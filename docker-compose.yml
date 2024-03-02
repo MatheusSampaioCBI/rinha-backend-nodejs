@@ -1,0 +1,41 @@
+version: '3.5'
+services:
+  api1: # API da Instância 01
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      HOST: 'localhost'
+      POSTGRES_HOST: 'localhost'
+      POSTGRES_USER: 'postgres'
+      POSTGRES_PASSWORD: 'password'
+      POSTGRES_DATABASE: 'rinha'
+      POSTGRES_PORT: 5432
+    network_mode: host
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: '0.5GB'
+
+
+  db:
+   image: postgres
+   environment:
+      POSTGRES_PASSWORD: 'password'
+      POSTGRES_DB: 'rinha'
+   network_mode: host
+   volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+   deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: '1.5GB'
+   healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
