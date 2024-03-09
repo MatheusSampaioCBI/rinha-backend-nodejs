@@ -1,41 +1,72 @@
 version: '3.5'
 services:
-  api1: # API da Instância 01
-    build: .
-    depends_on:
-      db:
-        condition: service_healthy
+  api01: &api1 # API da Instância 01
+
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    hostname: api01
     environment:
-      PORT: 3000
-      HOST: 'localhost'
-      POSTGRES_HOST: 'localhost'
-      POSTGRES_USER: 'postgres'
-      POSTGRES_PASSWORD: 'password'
-      POSTGRES_DATABASE: 'rinha'
-      POSTGRES_PORT: 5432
-    network_mode: host
+      - HOST_DB=banco
+      - PORT_DB=5432
+      - USER_DB=admin
+      - PASSWORD_DB=123
+      - DATABASE=rinha
+      - MAX_CONNECTION_DB=1
+      - PORT=8080
+
+    expose:
+      -"8080"
+    depends_on:
+      - db
+    ulimits:
+      nproc: 1000000
+      nofile: 
+        soft: 1000000
+        hard: 1000000
     deploy:
       resources:
         limits:
-          cpus: '0.25'
-          memory: '0.5GB'
+          cpus: "0.50"
+          memory: "225MB"
 
+api02:
+  <<: *api
+  hostname: app2
 
+nginx:
+  image: nginx:latest
+  volumes:
+  - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  depends_on:
+    - api01
+    - api02
+  ports:
+  - "9999:9999"
+  ulimits:
+    nproc: 1000000
+    nofile:
+      soft: 1000000
+      hard: 1000000
+  deploy:
+    resources:
+      limits:
+        cpus: "0.40"
+        memory: "50MB"
+  
   db:
-   image: postgres
-   environment:
-      POSTGRES_PASSWORD: 'password'
-      POSTGRES_DB: 'rinha'
-   network_mode: host
-   volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-   deploy:
+    image: postgres:latest
+    hostname: db
+    environment:
+      - POSTGRES_PASSWORD=123
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=rinha
+    ports:
+      - "5431:5432"
+    volumes:
+    - ./script.sql:/docker-entrypoint-initdb.d/script.sql
+    deploy:
       resources:
         limits:
-          cpus: '0.75'
-          memory: '1.5GB'
-   healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+        cpus: "0.10"
+        memory: "50MB"
